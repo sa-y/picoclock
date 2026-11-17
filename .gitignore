@@ -1,0 +1,18 @@
+# Build output
+build/
+cmake-build-*/
+out/
+
+# Clangd / CMake caches
+.cache/
+compile_commands.json
+
+# VS Code (keep Pico extension settings)
+!.vscode/*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
