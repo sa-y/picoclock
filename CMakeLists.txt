@@ -36,11 +36,11 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(picoclock
-        picoclock.c
-        epd_2in13.c
-        gfx.c
-        ntp_client.c
-        power_mgmt.c
+        src/main.c
+        src/epd_ssd1680.c
+        src/graphics.c
+        src/ntp_client.c
+        src/power_mgmt.c
 )
 
 pico_set_program_name(picoclock "picoclock")
@@ -57,6 +57,7 @@ target_link_libraries(picoclock
 # Add the standard include files to the build
 target_include_directories(picoclock PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 # Add any user requested libraries

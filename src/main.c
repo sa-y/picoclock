@@ -3,11 +3,11 @@
 #include "pico/util/datetime.h"
 #include <stdio.h>
 
-#include "epd_2in13.h"
-#include "gfx.h"
+#include "epd_ssd1680.h"
+#include "graphics.h"
 #include "ntp_client.h"
 #include "power_mgmt.h"
-#include "wifi_config.h"
+#include "app_config.h"
 
 static uint8_t frame_buf[EPD_BUFFER_SIZE];
 static volatile bool s_minute_tick = false;

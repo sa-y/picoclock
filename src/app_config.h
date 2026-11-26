@@ -1,5 +1,5 @@
-#ifndef WIFI_CONFIG_H
-#define WIFI_CONFIG_H
+#ifndef APP_CONFIG_H
+#define APP_CONFIG_H
 
 // Wi-Fi settings (replace with your network credentials)
 #define WIFI_SSID "YOUR_WIFI_SSID"
@@ -17,4 +17,4 @@
 // Perform a full e-Paper refresh every N partial updates to clear ghosting
 #define FULL_REFRESH_INTERVAL_MINUTES 60
 
-#endif // WIFI_CONFIG_H
+#endif // APP_CONFIG_H

@@ -1,4 +1,4 @@
-#include "epd_2in13.h"
+#include "epd_ssd1680.h"
 #include "power_mgmt.h"
 
 #include "hardware/gpio.h"

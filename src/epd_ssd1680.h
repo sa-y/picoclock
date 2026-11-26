@@ -1,5 +1,5 @@
-#ifndef EPD_2IN13_H
-#define EPD_2IN13_H
+#ifndef EPD_SSD1680_H
+#define EPD_SSD1680_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -41,4 +41,4 @@ void epd_display_partial(const uint8_t *image);
 // Put the e-Paper controller into deep sleep to protect the panel.
 void epd_sleep(void);
 
-#endif // EPD_2IN13_H
+#endif // EPD_SSD1680_H

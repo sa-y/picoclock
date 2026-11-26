@@ -48,14 +48,14 @@ On startup, it fetches the current time from an NTP server over Wi-Fi, then upda
 
 ### 1. Configure Wi-Fi Credentials
 
-Open `wifi_config.h` and set your Wi-Fi SSID and password:
+Open `src/app_config.h` and set your Wi-Fi SSID and password:
 
 ```c
 #define WIFI_SSID     "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 ```
 
-> **Note**: If you publish your source code to GitHub or elsewhere, be careful not to commit `wifi_config.h` with your actual SSID and password.
+> **Note**: If you publish your source code to GitHub or elsewhere, be careful not to commit `src/app_config.h` with your actual SSID and password.
 
 ### 2. Build
 
@@ -76,7 +76,7 @@ When the build succeeds, `build/picoclock.uf2` is generated.
 
 ## Customization
 
-### Configuration (`wifi_config.h`)
+### Configuration (`src/app_config.h`)
 
 | Macro | Default Value | Description |
 | :--- | :--- | :--- |
@@ -87,9 +87,9 @@ When the build succeeds, `build/picoclock.uf2` is generated.
 | `NTP_RESYNC_MINUTES` | `360` | NTP resync interval in minutes |
 | `FULL_REFRESH_INTERVAL_MINUTES` | `60` | Full e-Paper refresh interval in minutes to prevent ghosting |
 
-### Rotate Display 180° (`gfx.h`)
+### Rotate Display 180° (`src/graphics.h`)
 
-If you mount the display upside-down, change `EPD_ROTATE_180` in `gfx.h` to `1` and rebuild:
+If you mount the display upside-down, change `EPD_ROTATE_180` in `src/graphics.h` to `1` and rebuild:
 
 ```c
 #define EPD_ROTATE_180 1
@@ -99,16 +99,17 @@ If you mount the display upside-down, change `EPD_ROTATE_180` in `gfx.h` to `1` 
 
 ```text
 .
-├── CMakeLists.txt        # CMake build configuration
-├── pico_sdk_import.cmake # Pico SDK import script
-├── picoclock.c           # Main application (RTC management & display update loop)
-├── epd_2in13.h/.c        # Waveshare Pico-ePaper-2.13 (SSD1680) driver
-├── gfx.h/.c              # 250×122 framebuffer drawing & fonts
-├── ntp_client.h/.c       # Wi-Fi connection & NTP time client
-├── power_mgmt.h/.c       # Clock control & deep sleep power management
-├── wifi_config.h         # Wi-Fi / NTP / refresh interval settings
-├── lwipopts.h            # lwIP network stack configuration
-└── LICENSE               # Apache License 2.0
+├── CMakeLists.txt          # CMake build configuration
+├── pico_sdk_import.cmake   # Pico SDK import script
+├── lwipopts.h              # lwIP network stack configuration
+├── LICENSE                 # Apache License 2.0
+└── src/                    # Application sources
+    ├── main.c              # Main application (RTC management & display update loop)
+    ├── app_config.h        # Wi-Fi / NTP / refresh interval settings
+    ├── epd_ssd1680.h/.c    # Waveshare Pico-ePaper-2.13 (SSD1680) driver
+    ├── graphics.h/.c       # 250×122 framebuffer drawing & fonts
+    ├── ntp_client.h/.c     # Wi-Fi connection & NTP time client
+    └── power_mgmt.h/.c     # Clock control & deep sleep power management
 ```
 
 ## License

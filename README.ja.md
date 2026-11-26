@@ -48,14 +48,14 @@ Raspberry Pi Pico W と Waveshare 2.13 インチ e-Paper ディスプレイを�
 
 ### 1. Wi-Fi 設定の編集
 
-`wifi_config.h` を開き、Wi-Fi の SSID とパスワードを設定してください。
+`src/app_config.h` を開き、Wi-Fi の SSID とパスワードを設定してください。
 
 ```c
 #define WIFI_SSID     "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 ```
 
-> **注意**: ソースコードを GitHub 等に公開する場合は、実際の SSID やパスワードを記載した `wifi_config.h` をコミットしないようご注意ください。
+> **注意**: ソースコードを GitHub 等に公開する場合は、実際の SSID やパスワードを記載した `src/app_config.h` をコミットしないようご注意ください。
 
 ### 2. ビルド
 
@@ -76,7 +76,7 @@ cmake --build build
 
 ## カスタマイズ
 
-### 設定変更（`wifi_config.h`）
+### 設定変更（`src/app_config.h`）
 
 | マクロ名 | デフォルト値 | 説明 |
 | :--- | :--- | :--- |
@@ -87,9 +87,9 @@ cmake --build build
 | `NTP_RESYNC_MINUTES` | `360` | NTP 再同期の間隔（分） |
 | `FULL_REFRESH_INTERVAL_MINUTES` | `60` | 焼き付き防止用の全画面更新の間隔（分） |
 
-### 画面の上下反転（`gfx.h`）
+### 画面の上下反転（`src/graphics.h`）
 
-ディスプレイを上下逆向きに取り付けた場合は、`gfx.h` の `EPD_ROTATE_180` を `1` に変更して再ビルドしてください。
+ディスプレイを上下逆向きに取り付けた場合は、`src/graphics.h` の `EPD_ROTATE_180` を `1` に変更して再ビルドしてください。
 
 ```c
 #define EPD_ROTATE_180 1
@@ -99,16 +99,17 @@ cmake --build build
 
 ```text
 .
-├── CMakeLists.txt        # CMake ビルド設定
-├── pico_sdk_import.cmake # Pico SDK インポートスクリプト
-├── picoclock.c           # メイン処理（RTC 管理・画面更新ループ）
-├── epd_2in13.h/.c        # Waveshare Pico-ePaper-2.13 (SSD1680) ドライバ
-├── gfx.h/.c              # 250×122 フレームバッファ描画・フォント
-├── ntp_client.h/.c       # Wi-Fi 接続・NTP 時刻取得クライアント
-├── power_mgmt.h/.c       # クロック制御・ディープスリープ省電力管理
-├── wifi_config.h         # Wi-Fi / NTP / 更新間隔の設定
-├── lwipopts.h            # lwIP ネットワークスタック設定
-└── LICENSE               # Apache License 2.0
+├── CMakeLists.txt          # CMake ビルド設定
+├── pico_sdk_import.cmake   # Pico SDK インポートスクリプト
+├── lwipopts.h              # lwIP ネットワークスタック設定
+├── LICENSE                 # Apache License 2.0
+└── src/                    # アプリケーションのソース
+    ├── main.c              # メイン処理（RTC 管理・画面更新ループ）
+    ├── app_config.h        # Wi-Fi / NTP / 更新間隔の設定
+    ├── epd_ssd1680.h/.c    # Waveshare Pico-ePaper-2.13 (SSD1680) ドライバ
+    ├── graphics.h/.c       # 250×122 フレームバッファ描画・フォント
+    ├── ntp_client.h/.c     # Wi-Fi 接続・NTP 時刻取得クライアント
+    └── power_mgmt.h/.c     # クロック制御・ディープスリープ省電力管理
 ```
 
 ## ライセンス

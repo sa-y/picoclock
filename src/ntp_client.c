@@ -1,6 +1,6 @@
 #include "ntp_client.h"
 #include "power_mgmt.h"
-#include "wifi_config.h"
+#include "app_config.h"
 
 #include <string.h>
 #include <time.h>

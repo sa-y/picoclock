@@ -1,4 +1,4 @@
-#include "gfx.h"
+#include "graphics.h"
 #include <string.h>
 
 // Standard 5x7 ASCII font (0x20 ' ' to 0x7E '~'), column-major, LSB = top pixel

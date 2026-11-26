@@ -1,7 +1,7 @@
-#ifndef GFX_H
-#define GFX_H
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
 
-#include "epd_2in13.h"
+#include "epd_ssd1680.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -20,4 +20,4 @@ void gfx_draw_text(uint8_t *buf, int x, int y, const char *str, int scale,
 // Draw large "HH:MM" clock digits centered at (x, y)
 void gfx_draw_large_time(uint8_t *buf, int x, int y, int hour, int min);
 
-#endif // GFX_H
+#endif // GRAPHICS_H
