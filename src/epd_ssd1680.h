@@ -1,6 +1,7 @@
 #ifndef EPD_SSD1680_H
 #define EPD_SSD1680_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -23,20 +24,22 @@
 #define EPD_PIN_RST 12
 #define EPD_PIN_BUSY 13
 
-// Initialize GPIO/SPI and configure the e-Paper controller for full refresh
-void epd_init_full(void);
+// Initialize GPIO/SPI and configure the e-Paper controller for full refresh.
+// Returns true on success, or false if the controller timed out.
+bool epd_init_full(void);
 
-// Clear the screen to white using full refresh
-void epd_clear(void);
+// Clear the screen to white using full refresh.
+// Returns true on success, or false if the controller timed out.
+bool epd_clear(void);
 
 // Perform a full refresh with the given 4000-byte framebuffer (1=white,
 // 0=black). Also updates the previous-frame RAM (0x26) so subsequent partial
-// updates work cleanly.
-void epd_display_full(const uint8_t *image);
+// updates work cleanly. Returns true on success.
+bool epd_display_full(const uint8_t *image);
 
 // Perform a fast partial refresh (no full-screen flash) with the given
-// framebuffer.
-void epd_display_partial(const uint8_t *image);
+// framebuffer. Returns true on success.
+bool epd_display_partial(const uint8_t *image);
 
 // Put the e-Paper controller into deep sleep to protect the panel.
 void epd_sleep(void);

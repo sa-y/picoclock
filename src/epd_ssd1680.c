@@ -193,16 +193,16 @@ static void epd_fill_ram(uint8_t cmd, uint8_t fill_byte) {
   gpio_put(EPD_PIN_CS, 1);
 }
 
-void epd_init_full(void) {
+bool epd_init_full(void) {
   epd_hw_init();
   epd_reset();
 
   if (!epd_wait_busy()) {
-    return;
+    return false;
   }
   epd_send_cmd(EPD_CMD_SW_RESET);
   if (!epd_wait_busy()) {
-    return;
+    return false;
   }
 
   epd_configure_scan_and_window();
@@ -218,16 +218,20 @@ void epd_init_full(void) {
   epd_send_data(0x80);
 
   epd_set_cursor(0, 0);
-  (void)epd_wait_busy();
+  return epd_wait_busy();
 }
 
-void epd_clear(void) {
+bool epd_clear(void) {
   epd_fill_ram(EPD_CMD_WRITE_RAM_BW, 0xFF);
   epd_fill_ram(EPD_CMD_WRITE_RAM_RED, 0xFF);
-  (void)epd_turn_on_full();
+  return epd_turn_on_full();
 }
 
-void epd_display_full(const uint8_t *image) {
+bool epd_display_full(const uint8_t *image) {
+  if (image == NULL) {
+    return false;
+  }
+
   epd_set_cursor(0, 0);
   epd_send_cmd(EPD_CMD_WRITE_RAM_BW);
   epd_send_data_buf(image, EPD_BUFFER_SIZE);
@@ -237,10 +241,14 @@ void epd_display_full(const uint8_t *image) {
   epd_send_cmd(EPD_CMD_WRITE_RAM_RED);
   epd_send_data_buf(image, EPD_BUFFER_SIZE);
 
-  (void)epd_turn_on_full();
+  return epd_turn_on_full();
 }
 
-void epd_display_partial(const uint8_t *image) {
+bool epd_display_partial(const uint8_t *image) {
+  if (image == NULL) {
+    return false;
+  }
+
   epd_hw_init();
 
   // Brief hardware reset wakes from sleep and prepares partial update
@@ -249,7 +257,7 @@ void epd_display_partial(const uint8_t *image) {
   gpio_put(EPD_PIN_RST, 1);
   sleep_ms(2);
   if (!epd_wait_busy()) {
-    return;
+    return false;
   }
 
   epd_send_cmd(EPD_CMD_BORDER_WAVEFORM); // BorderWaveform for partial update
@@ -261,7 +269,7 @@ void epd_display_partial(const uint8_t *image) {
   epd_send_cmd(EPD_CMD_WRITE_RAM_BW);
   epd_send_data_buf(image, EPD_BUFFER_SIZE);
 
-  (void)epd_turn_on_partial();
+  return epd_turn_on_partial();
 }
 
 void epd_sleep(void) {

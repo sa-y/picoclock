@@ -3,18 +3,16 @@
 #include "pico/util/datetime.h"
 #include <stdio.h>
 
+#include "app_config.h"
 #include "epd_ssd1680.h"
 #include "graphics.h"
 #include "ntp_client.h"
 #include "power_mgmt.h"
-#include "app_config.h"
 
 static uint8_t frame_buf[EPD_BUFFER_SIZE];
 static volatile bool s_minute_tick = false;
 
-static void rtc_alarm_callback(void) {
-  s_minute_tick = true;
-}
+static void rtc_alarm_callback(void) { s_minute_tick = true; }
 
 static bool is_same_minute(const datetime_t *a, const datetime_t *b) {
   return a->year == b->year && a->month == b->month && a->day == b->day &&
@@ -45,25 +43,32 @@ static void render_clock(const datetime_t *dt) {
   gfx_draw_large_time(frame_buf, 14, 36, dt->hour, dt->min);
 }
 
+static bool display_full_frame(void) {
+  bool ok = epd_init_full() && epd_display_full(frame_buf);
+  epd_sleep();
+  return ok;
+}
+
+static bool display_partial_frame(void) {
+  bool ok = epd_display_partial(frame_buf);
+  epd_sleep();
+  return ok;
+}
+
 int main(void) {
   stdio_init_all();
   power_init();
   rtc_init();
 
-  epd_init_full();
   render_status("PicoClock", "Syncing NTP...");
-  epd_display_full(frame_buf);
-  epd_sleep();
+  (void)display_full_frame();
 
   datetime_t now = {0};
   bool sync_err_shown = false;
   while (!ntp_sync_datetime(&now)) {
     if (!sync_err_shown) {
-      epd_init_full();
       render_status("NTP Sync Failed", "Retrying in 30s");
-      epd_display_full(frame_buf);
-      epd_sleep();
-      sync_err_shown = true;
+      sync_err_shown = display_full_frame();
     }
     power_sleep_ms(30000);
   }
@@ -73,13 +78,10 @@ int main(void) {
   sleep_ms(100);
   rtc_get_datetime(&now);
 
-  epd_init_full();
   render_clock(&now);
-  epd_display_full(frame_buf);
-  epd_sleep();
+  int partial_count = display_full_frame() ? 0 : FULL_REFRESH_INTERVAL_MINUTES;
 
   datetime_t last_displayed = now;
-  int partial_count = 0;
   int resync_minutes = 0;
 
   // Trigger an RTC alarm at sec == 0 every minute
@@ -115,13 +117,16 @@ int main(void) {
     // Update the display for the new minute before any blocking NTP sync
     render_clock(&now);
     if (partial_count >= FULL_REFRESH_INTERVAL_MINUTES) {
-      epd_init_full();
-      epd_display_full(frame_buf);
-      epd_sleep();
-      partial_count = 0;
+      if (display_full_frame()) {
+        partial_count = 0;
+      } else {
+        partial_count = FULL_REFRESH_INTERVAL_MINUTES;
+      }
     } else {
-      epd_display_partial(frame_buf);
-      epd_sleep();
+      if (!display_partial_frame()) {
+        // Force a full refresh (with reset/re-init) on the next update
+        partial_count = FULL_REFRESH_INTERVAL_MINUTES;
+      }
     }
 
     if (resync_minutes >= NTP_RESYNC_MINUTES) {
@@ -134,8 +139,9 @@ int main(void) {
           now = synced;
           last_displayed = now;
           render_clock(&now);
-          epd_display_partial(frame_buf);
-          epd_sleep();
+          if (!display_partial_frame()) {
+            partial_count = FULL_REFRESH_INTERVAL_MINUTES;
+          }
         }
       }
     }
