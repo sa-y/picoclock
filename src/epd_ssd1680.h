@@ -28,10 +28,6 @@
 // Returns true on success, or false if the controller timed out.
 bool epd_init_full(void);
 
-// Clear the screen to white using full refresh.
-// Returns true on success, or false if the controller timed out.
-bool epd_clear(void);
-
 // Perform a full refresh with the given 4000-byte framebuffer (1=white,
 // 0=black). Also updates the previous-frame RAM (0x26) so subsequent partial
 // updates work cleanly. Returns true on success.

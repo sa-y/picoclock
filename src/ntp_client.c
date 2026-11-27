@@ -1,5 +1,4 @@
 #include "ntp_client.h"
-#include "power_mgmt.h"
 #include "app_config.h"
 
 #include <string.h>
@@ -217,10 +216,7 @@ bool ntp_sync_datetime(datetime_t *out_dt) {
     return false;
   }
 
-  power_set_clock_normal();
-
   if (cyw43_arch_init()) {
-    power_set_clock_low();
     return false;
   }
 
@@ -231,7 +227,6 @@ bool ntp_sync_datetime(datetime_t *out_dt) {
                                               WIFI_CONNECT_TIMEOUT_MS);
   if (rc != 0) {
     cyw43_arch_deinit();
-    power_set_clock_low();
     return false;
   }
 
@@ -245,6 +240,5 @@ bool ntp_sync_datetime(datetime_t *out_dt) {
   }
 
   cyw43_arch_deinit();
-  power_set_clock_low();
   return ok;
 }

@@ -1,5 +1,5 @@
 #include "graphics.h"
-#include "app_config.h"
+#include <stddef.h>
 #include <string.h>
 
 // Standard 5x7 ASCII font (0x20 ' ' to 0x7E '~'), column-major, LSB = top pixel
@@ -101,44 +101,67 @@ static const uint8_t FONT_5X7[95][5] = {
     {0x10, 0x08, 0x08, 0x10, 0x08}, // '~'
 };
 
-void gfx_clear(uint8_t *buf) { memset(buf, 0xFF, EPD_BUFFER_SIZE); }
+static bool canvas_is_valid(const gfx_canvas_t *canvas) {
+  return canvas != NULL && canvas->buf != NULL && canvas->native_width > 0 &&
+         canvas->native_height > 0 && canvas->stride_bytes > 0;
+}
 
-void gfx_set_pixel(uint8_t *buf, int x, int y, bool black) {
-  if (x < 0 || x >= EPD_LANDSCAPE_WIDTH || y < 0 || y >= EPD_LANDSCAPE_HEIGHT) {
+void gfx_clear(gfx_canvas_t *canvas) {
+  if (!canvas_is_valid(canvas)) {
+    return;
+  }
+  size_t buf_size = (size_t)canvas->stride_bytes * (size_t)canvas->native_height;
+  memset(canvas->buf, 0xFF, buf_size);
+}
+
+void gfx_set_pixel(gfx_canvas_t *canvas, int x, int y, bool black) {
+  if (!canvas_is_valid(canvas)) {
     return;
   }
 
-#if EPD_ROTATE_180
-  int nx = y;
-  int ny = (EPD_NATIVE_HEIGHT - 1) - x;
-#else
-  int nx = (EPD_NATIVE_WIDTH - 1) - y;
-  int ny = x;
-#endif
+  const int landscape_w = canvas->native_height;
+  const int landscape_h = canvas->native_width;
+  if (x < 0 || x >= landscape_w || y < 0 || y >= landscape_h) {
+    return;
+  }
 
-  size_t idx = (size_t)ny * EPD_STRIDE_BYTES + (size_t)(nx >> 3);
+  int nx;
+  int ny;
+  if (canvas->rotate_180) {
+    nx = y;
+    ny = (canvas->native_height - 1) - x;
+  } else {
+    nx = (canvas->native_width - 1) - y;
+    ny = x;
+  }
+
+  size_t idx = (size_t)ny * (size_t)canvas->stride_bytes + (size_t)(nx >> 3);
   uint8_t mask = (uint8_t)(0x80 >> (nx & 7));
 
   if (black) {
-    buf[idx] &= (uint8_t)~mask;
+    canvas->buf[idx] &= (uint8_t)~mask;
   } else {
-    buf[idx] |= mask;
+    canvas->buf[idx] |= mask;
   }
 }
 
-void gfx_fill_rect(uint8_t *buf, int x, int y, int w, int h, bool black) {
+void gfx_fill_rect(gfx_canvas_t *canvas, int x, int y, int w, int h,
+                   bool black) {
+  if (!canvas_is_valid(canvas)) {
+    return;
+  }
   for (int dy = 0; dy < h; dy++) {
     for (int dx = 0; dx < w; dx++) {
-      gfx_set_pixel(buf, x + dx, y + dy, black);
+      gfx_set_pixel(canvas, x + dx, y + dy, black);
     }
   }
 }
 
-void gfx_draw_hline(uint8_t *buf, int x, int y, int w, bool black) {
-  gfx_fill_rect(buf, x, y, w, 1, black);
+void gfx_draw_hline(gfx_canvas_t *canvas, int x, int y, int w, bool black) {
+  gfx_fill_rect(canvas, x, y, w, 1, black);
 }
 
-static void gfx_draw_char(uint8_t *buf, int x, int y, char c, int scale,
+static void gfx_draw_char(gfx_canvas_t *canvas, int x, int y, char c, int scale,
                           bool black) {
   unsigned char uc = (unsigned char)c;
   if (uc < 0x20 || uc > 0x7E) {
@@ -149,22 +172,22 @@ static void gfx_draw_char(uint8_t *buf, int x, int y, char c, int scale,
     uint8_t bits = glyph[col];
     for (int row = 0; row < 7; row++) {
       if (bits & (1u << row)) {
-        gfx_fill_rect(buf, x + col * scale, y + row * scale, scale, scale,
+        gfx_fill_rect(canvas, x + col * scale, y + row * scale, scale, scale,
                       black);
       }
     }
   }
 }
 
-void gfx_draw_text(uint8_t *buf, int x, int y, const char *str, int scale,
-                   bool black) {
-  if (buf == NULL || str == NULL || scale <= 0) {
+void gfx_draw_text(gfx_canvas_t *canvas, int x, int y, const char *str,
+                   int scale, bool black) {
+  if (!canvas_is_valid(canvas) || str == NULL || scale <= 0) {
     return;
   }
   int cx = x;
   int step = 6 * scale;
   while (*str) {
-    gfx_draw_char(buf, cx, y, *str, scale, black);
+    gfx_draw_char(canvas, cx, y, *str, scale, black);
     cx += step;
     str++;
   }
@@ -185,7 +208,7 @@ static const uint8_t SEG7_DIGITS[10] = {
     0x6F, // 9: a b c d f g
 };
 
-static void draw_large_digit(uint8_t *buf, int x, int y, int digit) {
+static void draw_large_digit(gfx_canvas_t *canvas, int x, int y, int digit) {
   if (digit < 0 || digit > 9) {
     return;
   }
@@ -195,35 +218,39 @@ static void draw_large_digit(uint8_t *buf, int x, int y, int digit) {
   uint8_t seg = SEG7_DIGITS[digit];
 
   if (seg & 0x01) { // a: top
-    gfx_fill_rect(buf, x + 2, y, w - 4, t, true);
+    gfx_fill_rect(canvas, x + 2, y, w - 4, t, true);
   }
   if (seg & 0x02) { // b: top-right
-    gfx_fill_rect(buf, x + w - t, y + 2, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x + w - t, y + 2, t, h / 2 - 3, true);
   }
   if (seg & 0x04) { // c: bottom-right
-    gfx_fill_rect(buf, x + w - t, y + h / 2 + 1, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x + w - t, y + h / 2 + 1, t, h / 2 - 3, true);
   }
   if (seg & 0x08) { // d: bottom
-    gfx_fill_rect(buf, x + 2, y + h - t, w - 4, t, true);
+    gfx_fill_rect(canvas, x + 2, y + h - t, w - 4, t, true);
   }
   if (seg & 0x10) { // e: bottom-left
-    gfx_fill_rect(buf, x, y + h / 2 + 1, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x, y + h / 2 + 1, t, h / 2 - 3, true);
   }
   if (seg & 0x20) { // f: top-left
-    gfx_fill_rect(buf, x, y + 2, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x, y + 2, t, h / 2 - 3, true);
   }
   if (seg & 0x40) { // g: middle
-    gfx_fill_rect(buf, x + 2, y + (h - t) / 2, w - 4, t, true);
+    gfx_fill_rect(canvas, x + 2, y + (h - t) / 2, w - 4, t, true);
   }
 }
 
-static void draw_large_colon(uint8_t *buf, int x, int y) {
+static void draw_large_colon(gfx_canvas_t *canvas, int x, int y) {
   const int dot = 8;
-  gfx_fill_rect(buf, x + 3, y + 20, dot, dot, true);
-  gfx_fill_rect(buf, x + 3, y + 48, dot, dot, true);
+  gfx_fill_rect(canvas, x + 3, y + 20, dot, dot, true);
+  gfx_fill_rect(canvas, x + 3, y + 48, dot, dot, true);
 }
 
-void gfx_draw_large_time(uint8_t *buf, int x, int y, int hour, int min) {
+void gfx_draw_large_time(gfx_canvas_t *canvas, int x, int y, int hour,
+                         int min) {
+  if (!canvas_is_valid(canvas)) {
+    return;
+  }
   const int digit_w = 44;
   const int colon_w = 14;
   const int gap = 8;
@@ -234,13 +261,13 @@ void gfx_draw_large_time(uint8_t *buf, int x, int y, int hour, int min) {
   int m2 = min % 10;
 
   int cx = x;
-  draw_large_digit(buf, cx, y, h1);
+  draw_large_digit(canvas, cx, y, h1);
   cx += digit_w + gap;
-  draw_large_digit(buf, cx, y, h2);
+  draw_large_digit(canvas, cx, y, h2);
   cx += digit_w + gap;
-  draw_large_colon(buf, cx, y);
+  draw_large_colon(canvas, cx, y);
   cx += colon_w + gap;
-  draw_large_digit(buf, cx, y, m1);
+  draw_large_digit(canvas, cx, y, m1);
   cx += digit_w + gap;
-  draw_large_digit(buf, cx, y, m2);
+  draw_large_digit(canvas, cx, y, m2);
 }

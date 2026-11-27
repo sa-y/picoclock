@@ -7,7 +7,6 @@
 #include "hardware/spi.h"
 #include "pico/stdlib.h"
 #include <stdbool.h>
-#include <string.h>
 
 // SSD1680 command definitions
 enum {
@@ -176,23 +175,6 @@ static bool epd_turn_on_partial(void) {
   return epd_wait_busy();
 }
 
-static void epd_fill_ram(uint8_t cmd, uint8_t fill_byte) {
-  uint8_t chunk[64];
-  memset(chunk, fill_byte, sizeof(chunk));
-
-  epd_set_cursor(0, 0);
-  epd_send_cmd(cmd);
-  gpio_put(EPD_PIN_DC, 1);
-  gpio_put(EPD_PIN_CS, 0);
-  size_t remaining = EPD_BUFFER_SIZE;
-  while (remaining > 0) {
-    size_t n = remaining < sizeof(chunk) ? remaining : sizeof(chunk);
-    spi_write_blocking(EPD_SPI_PORT, chunk, n);
-    remaining -= n;
-  }
-  gpio_put(EPD_PIN_CS, 1);
-}
-
 bool epd_init_full(void) {
   epd_hw_init();
   epd_reset();
@@ -219,12 +201,6 @@ bool epd_init_full(void) {
 
   epd_set_cursor(0, 0);
   return epd_wait_busy();
-}
-
-bool epd_clear(void) {
-  epd_fill_ram(EPD_CMD_WRITE_RAM_BW, 0xFF);
-  epd_fill_ram(EPD_CMD_WRITE_RAM_RED, 0xFF);
-  return epd_turn_on_full();
 }
 
 bool epd_display_full(const uint8_t *image) {

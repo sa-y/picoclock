@@ -16,6 +16,13 @@ typedef struct {
 } clock_state_t;
 
 static uint8_t frame_buf[EPD_BUFFER_SIZE];
+static gfx_canvas_t s_canvas = {
+    .buf = frame_buf,
+    .native_width = EPD_NATIVE_WIDTH,
+    .native_height = EPD_NATIVE_HEIGHT,
+    .stride_bytes = EPD_STRIDE_BYTES,
+    .rotate_180 = (EPD_ROTATE_180 != 0),
+};
 static volatile bool s_minute_tick = false;
 
 static void rtc_alarm_callback(void) { s_minute_tick = true; }
@@ -26,12 +33,12 @@ static bool is_same_minute(const datetime_t *a, const datetime_t *b) {
 }
 
 static void render_status(const char *line1, const char *line2) {
-  gfx_clear(frame_buf);
+  gfx_clear(&s_canvas);
   if (line1) {
-    gfx_draw_text(frame_buf, 10, 34, line1, 2, true);
+    gfx_draw_text(&s_canvas, 10, 34, line1, 2, true);
   }
   if (line2) {
-    gfx_draw_text(frame_buf, 10, 62, line2, 2, true);
+    gfx_draw_text(&s_canvas, 10, 62, line2, 2, true);
   }
 }
 
@@ -40,13 +47,13 @@ static void render_clock(const datetime_t *dt) {
   snprintf(date_str, sizeof(date_str), "%04d/%02d/%02d", dt->year, dt->month,
            dt->day);
 
-  gfx_clear(frame_buf);
+  gfx_clear(&s_canvas);
   // Date in top-left corner, smaller than time
-  gfx_draw_text(frame_buf, 8, 6, date_str, 2, true);
+  gfx_draw_text(&s_canvas, 8, 6, date_str, 2, true);
   // Subtle divider line
-  gfx_draw_hline(frame_buf, 8, 26, EPD_LANDSCAPE_WIDTH - 16, true);
+  gfx_draw_hline(&s_canvas, 8, 26, EPD_LANDSCAPE_WIDTH - 16, true);
   // Large HH:MM centered in the main area
-  gfx_draw_large_time(frame_buf, 14, 36, dt->hour, dt->min);
+  gfx_draw_large_time(&s_canvas, 14, 36, dt->hour, dt->min);
 }
 
 static bool display_full_frame(void) {
@@ -87,13 +94,20 @@ static void update_clock_display(clock_state_t *state, const datetime_t *dt,
   state->last_displayed = *dt;
 }
 
+static bool sync_ntp_datetime(datetime_t *out_dt) {
+  power_set_clock_normal();
+  bool ok = ntp_sync_datetime(out_dt);
+  power_set_clock_low();
+  return ok;
+}
+
 static void resync_ntp_if_due(clock_state_t *state) {
   if (state->minutes_until_resync > 0) {
     return;
   }
 
   datetime_t synced = {0};
-  if (!ntp_sync_datetime(&synced)) {
+  if (!sync_ntp_datetime(&synced)) {
     int retry = NTP_RESYNC_RETRY_MINUTES;
     if (retry > NTP_RESYNC_MINUTES) {
       retry = NTP_RESYNC_MINUTES;
@@ -110,7 +124,9 @@ static void resync_ntp_if_due(clock_state_t *state) {
 }
 
 int main(void) {
+#if LIB_PICO_STDIO_UART || LIB_PICO_STDIO_USB
   stdio_init_all();
+#endif
   power_init();
   rtc_init();
 
@@ -119,7 +135,7 @@ int main(void) {
 
   datetime_t now = {0};
   bool sync_err_shown = false;
-  while (!ntp_sync_datetime(&now)) {
+  while (!sync_ntp_datetime(&now)) {
     if (!sync_err_shown) {
       char retry_msg[24];
       snprintf(retry_msg, sizeof(retry_msg), "Retrying in %us",
