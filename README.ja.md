@@ -91,6 +91,52 @@ cmake --build build
 
 タイムアウトやリトライ設定（`WIFI_CONNECT_TIMEOUT_MS`、`NTP_TIMEOUT_MS`、`NTP_INITIAL_RETRY_DELAY_MS`、`EPD_BUSY_TIMEOUT_MS`、`EPD_SPI_BAUDRATE` 等）も `src/app_config.h` に集約されており、コンパイラの `-D` オプションで上書き可能です。
 
+### デバッグ用に UART / USB stdio を有効にしてビルドする
+
+省電力のため、デフォルトでは UART / USB の stdio 出力は無効になっています。`printf` によるデバッグログを確認したい場合は、`CMakeLists.txt` で UART または USB stdio を有効にしてビルドしてください。
+
+#### 方法 A: UART stdio（省電力動作を含めて検証したい場合におすすめ）
+
+1. `CMakeLists.txt` を開き、`pico_enable_stdio_uart` を `1` に変更します。
+
+   ```cmake
+   pico_enable_stdio_uart(picoclock 1)
+   pico_enable_stdio_usb(picoclock 0)
+   ```
+
+2. 再ビルドして生成された `build/picoclock.uf2` を Pico W に書き込みます。
+
+   ```powershell
+   cmake -B build -G Ninja
+   cmake --build build
+   ```
+
+3. USB-UART 変換アダプタ（3.3 V ロジック）をデフォルトの UART0 ピン（`GP0` = TX、`GP1` = RX、`GND`）に接続し、シリアルターミナルを **115200 bps（8N1）** で開きます。
+
+#### 方法 B: USB stdio（追加配線なしで手軽に確認したい場合）
+
+1. `CMakeLists.txt` を開き、`pico_enable_stdio_usb` を `1` に変更します。
+
+   ```cmake
+   pico_enable_stdio_uart(picoclock 0)
+   pico_enable_stdio_usb(picoclock 1)
+   ```
+
+2. 再ビルドして生成された `build/picoclock.uf2` を Pico W に書き込みます。
+
+   ```powershell
+   cmake -B build -G Ninja
+   cmake --build build
+   ```
+
+3. Pico W を PC に USB 接続し、認識された仮想シリアルポート（Windows では `COMx`、Linux では `/dev/ttyACM0`、macOS では `/dev/cu.usbmodem*` 等）をシリアルターミナルで開きます。
+
+> **注意**:
+> - `GP0` / `GP1` は e-Paper HAT の使用ピン（`GP8`〜`GP13`）と競合しません。
+> - **UART stdio** 有効時は、ディープスリープを維持したまま 12 MHz / 125 MHz のクロック切替時およびスリープ前に `power_mgmt` が自動で送信完了待ちとボーレート再設定を行います。
+> - **USB stdio** 有効時は、USB CDC 接続を維持するため `power_mgmt` が自動で `PLL_USB` / `clk_usb` の停止とディープスリープ時のクロックゲーティングを無効化し、通常の WFI 待機になります。
+> - デバッグ完了後は省電力動作に戻すため、`pico_enable_stdio_uart` / `pico_enable_stdio_usb` ともに `0` に戻してください。
+
 ## ファイル構成
 
 ```text

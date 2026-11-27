@@ -91,6 +91,52 @@ When the build succeeds, `build/picoclock.uf2` is generated.
 
 Timeouts and retry parameters (such as `WIFI_CONNECT_TIMEOUT_MS`, `NTP_TIMEOUT_MS`, `NTP_INITIAL_RETRY_DELAY_MS`, `EPD_BUSY_TIMEOUT_MS`, and `EPD_SPI_BAUDRATE`) are also configurable in `src/app_config.h` and can be overridden via compiler `-D` flags.
 
+### Enabling UART / USB stdio for Debugging
+
+UART and USB stdio are disabled by default to minimize power consumption. To view `printf` debug output, enable either UART or USB stdio in `CMakeLists.txt` and rebuild.
+
+#### Option A: UART stdio (recommended for testing power-saving behavior)
+
+1. Open `CMakeLists.txt` and set `pico_enable_stdio_uart` to `1`:
+
+   ```cmake
+   pico_enable_stdio_uart(picoclock 1)
+   pico_enable_stdio_usb(picoclock 0)
+   ```
+
+2. Rebuild and flash `build/picoclock.uf2`:
+
+   ```powershell
+   cmake -B build -G Ninja
+   cmake --build build
+   ```
+
+3. Connect a USB-to-UART adapter (3.3 V logic) to the default UART0 pins (`GP0` = TX, `GP1` = RX, `GND`) and open a serial terminal at **115200 bps (8N1)**.
+
+#### Option B: USB stdio (no extra wiring required)
+
+1. Open `CMakeLists.txt` and set `pico_enable_stdio_usb` to `1`:
+
+   ```cmake
+   pico_enable_stdio_uart(picoclock 0)
+   pico_enable_stdio_usb(picoclock 1)
+   ```
+
+2. Rebuild and flash `build/picoclock.uf2`:
+
+   ```powershell
+   cmake -B build -G Ninja
+   cmake --build build
+   ```
+
+3. Connect the Pico W to your PC via USB and open the virtual serial port (e.g., `COMx` on Windows, `/dev/ttyACM0` on Linux, or `/dev/cu.usbmodem*` on macOS) in a serial terminal.
+
+> **Notes**:
+> - `GP0` / `GP1` do not conflict with the e-Paper HAT pins (`GP8`–`GP13`).
+> - When **UART stdio** is enabled, `power_mgmt` automatically flushes pending TX data and reconfigures the UART baud rate across 12 MHz / 125 MHz clock transitions, while keeping deep sleep active.
+> - When **USB stdio** is enabled, `power_mgmt` automatically keeps `PLL_USB` / `clk_usb` running and uses regular WFI instead of deep-sleep clock gating so the USB CDC connection stays alive.
+> - Set both `pico_enable_stdio_uart` and `pico_enable_stdio_usb` back to `0` after debugging for minimum power consumption.
+
 ## Project Structure
 
 ```text
