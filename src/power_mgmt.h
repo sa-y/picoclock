@@ -4,8 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Stop unused peripheral clocks (USB, ADC), switch RTC clock source to XOSC,
-// power down PLL_USB permanently, and switch to low-power 12 MHz XOSC clock.
+// Stop unused peripheral clocks (ADC, and USB when USB stdio is disabled),
+// switch RTC clock source to XOSC, power down PLL_USB when USB stdio is
+// disabled, and switch to low-power 12 MHz XOSC clock.
 void power_init(void);
 
 // Switch clk_sys and clk_peri to 12 MHz XOSC and power down PLL_SYS.

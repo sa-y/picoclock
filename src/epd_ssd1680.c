@@ -28,6 +28,7 @@ enum {
 };
 
 static volatile bool s_epd_wait_done = false;
+static bool s_hw_initialized = false;
 
 static void epd_busy_irq_handler(void) {
   uint32_t events = gpio_get_irq_event_mask(EPD_PIN_BUSY);
@@ -46,12 +47,11 @@ static int64_t epd_timeout_alarm_cb(alarm_id_t id, void *user_data) {
 }
 
 static void epd_hw_init(void) {
-  static bool initialized = false;
-  if (initialized) {
+  if (s_hw_initialized) {
     spi_set_baudrate(EPD_SPI_PORT, EPD_SPI_BAUDRATE);
     return;
   }
-  initialized = true;
+  s_hw_initialized = true;
 
   spi_init(EPD_SPI_PORT, EPD_SPI_BAUDRATE);
   gpio_set_function(EPD_PIN_SCK, GPIO_FUNC_SPI);
@@ -93,12 +93,18 @@ static bool epd_wait_busy(void) {
   s_epd_wait_done = false;
   alarm_id_t alarm =
       add_alarm_in_ms(EPD_BUSY_TIMEOUT_MS, epd_timeout_alarm_cb, NULL, true);
-  gpio_set_irq_enabled(EPD_PIN_BUSY, GPIO_IRQ_LEVEL_LOW, true);
+  if (alarm < 0) {
+    absolute_time_t deadline = make_timeout_time_ms(EPD_BUSY_TIMEOUT_MS);
+    while (gpio_get(EPD_PIN_BUSY) != 0 && !time_reached(deadline)) {
+      sleep_ms(1);
+    }
+    return gpio_get(EPD_PIN_BUSY) == 0;
+  }
 
-  power_sleep_until_io_or_timer(&s_epd_wait_done);
-
-  gpio_set_irq_enabled(EPD_PIN_BUSY, GPIO_IRQ_LEVEL_LOW, false);
   if (alarm > 0) {
+    gpio_set_irq_enabled(EPD_PIN_BUSY, GPIO_IRQ_LEVEL_LOW, true);
+    power_sleep_until_io_or_timer(&s_epd_wait_done);
+    gpio_set_irq_enabled(EPD_PIN_BUSY, GPIO_IRQ_LEVEL_LOW, false);
     cancel_alarm(alarm);
   }
 
@@ -208,6 +214,8 @@ bool epd_display_full(const uint8_t *image) {
     return false;
   }
 
+  epd_hw_init();
+
   epd_set_cursor(0, 0);
   epd_send_cmd(EPD_CMD_WRITE_RAM_BW);
   epd_send_data_buf(image, EPD_BUFFER_SIZE);
@@ -249,7 +257,11 @@ bool epd_display_partial(const uint8_t *image) {
 }
 
 void epd_sleep(void) {
+  if (!s_hw_initialized) {
+    return;
+  }
+  epd_hw_init();
   epd_send_cmd(EPD_CMD_DEEP_SLEEP); // Deep sleep mode 1
   epd_send_data(0x01);
-  sleep_ms(100);
+  power_sleep_ms(100);
 }

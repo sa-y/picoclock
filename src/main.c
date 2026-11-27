@@ -57,7 +57,10 @@ static void render_clock(const datetime_t *dt) {
 }
 
 static bool display_full_frame(void) {
-  bool ok = epd_init_full() && epd_display_full(frame_buf);
+  if (!epd_init_full()) {
+    return false;
+  }
+  bool ok = epd_display_full(frame_buf);
   epd_sleep();
   return ok;
 }
@@ -68,11 +71,13 @@ static bool display_partial_frame(void) {
   return ok;
 }
 
-static void apply_rtc_datetime(datetime_t *dt) {
-  rtc_set_datetime(dt);
-  // Wait briefly for RTC registers to latch
-  sleep_ms(100);
-  rtc_get_datetime(dt);
+static bool apply_rtc_datetime(datetime_t *dt) {
+  if (!rtc_set_datetime(dt)) {
+    return false;
+  }
+  // Wait >= 3 clk_rtc cycles (~64 us at 46,875 Hz) for RTC registers to latch
+  sleep_us(200);
+  return rtc_get_datetime(dt);
 }
 
 static void update_clock_display(clock_state_t *state, const datetime_t *dt,
@@ -107,7 +112,7 @@ static void resync_ntp_if_due(clock_state_t *state) {
   }
 
   datetime_t synced = {0};
-  if (!sync_ntp_datetime(&synced)) {
+  if (!sync_ntp_datetime(&synced) || !apply_rtc_datetime(&synced)) {
     int retry = NTP_RESYNC_RETRY_MINUTES;
     if (retry > NTP_RESYNC_MINUTES) {
       retry = NTP_RESYNC_MINUTES;
@@ -117,7 +122,6 @@ static void resync_ntp_if_due(clock_state_t *state) {
   }
 
   state->minutes_until_resync = NTP_RESYNC_MINUTES;
-  apply_rtc_datetime(&synced);
   if (!is_same_minute(&synced, &state->last_displayed)) {
     update_clock_display(state, &synced, false);
   }
@@ -135,7 +139,7 @@ int main(void) {
 
   datetime_t now = {0};
   bool sync_err_shown = false;
-  while (!sync_ntp_datetime(&now)) {
+  while (!sync_ntp_datetime(&now) || !apply_rtc_datetime(&now)) {
     if (!sync_err_shown) {
       char retry_msg[24];
       snprintf(retry_msg, sizeof(retry_msg), "Retrying in %us",
@@ -145,8 +149,6 @@ int main(void) {
     }
     power_sleep_ms(NTP_INITIAL_RETRY_DELAY_MS);
   }
-
-  apply_rtc_datetime(&now);
 
   clock_state_t state = {
       .last_displayed = now,

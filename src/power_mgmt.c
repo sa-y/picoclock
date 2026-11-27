@@ -10,12 +10,35 @@
 #include "hardware/sync.h"
 #include "hardware/xosc.h"
 #include "pico/time.h"
+#if LIB_PICO_STDIO_UART
+#include "hardware/uart.h"
+#include "pico/stdlib.h"
+#endif
+
+static void flush_stdio_uart(void) {
+#if LIB_PICO_STDIO_UART
+  uart_default_tx_wait_blocking();
+#endif
+}
+
+static void reconfigure_stdio_uart(void) {
+#if LIB_PICO_STDIO_UART
+  uart_set_baudrate(uart_default, PICO_DEFAULT_UART_BAUD_RATE);
+#endif
+}
 
 static void sleep_with_clock_mask(const volatile bool *flag, uint32_t en0_mask,
                                   uint32_t en1_mask) {
+  flush_stdio_uart();
   while (!*flag) {
     uint32_t irq_state = save_and_disable_interrupts();
     if (!*flag) {
+#if LIB_PICO_STDIO_USB
+      (void)en0_mask;
+      (void)en1_mask;
+      // Keep clocks active during WFI so USB CDC stdio stays connected
+      __wfi();
+#else
       uint32_t saved_en0 = clocks_hw->sleep_en0;
       uint32_t saved_en1 = clocks_hw->sleep_en1;
       uint32_t saved_scr = scb_hw->scr;
@@ -29,28 +52,33 @@ static void sleep_with_clock_mask(const volatile bool *flag, uint32_t en0_mask,
       scb_hw->scr = saved_scr;
       clocks_hw->sleep_en0 = saved_en0;
       clocks_hw->sleep_en1 = saved_en1;
+#endif
     }
     restore_interrupts(irq_state);
   }
 }
 
 void power_init(void) {
-  // Disable clocks for unused peripherals (USB and ADC)
-  clock_stop(clk_usb);
+  // Disable clocks for unused peripherals (ADC, and USB when USB stdio is off)
   clock_stop(clk_adc);
 
   // Switch clk_rtc from PLL_USB to XOSC (12 MHz / 256 = 46875 Hz)
-  // so PLL_USB can be powered down permanently without affecting the RTC.
+  // so PLL_USB can be powered down without affecting the RTC.
   clock_configure_int_divider(clk_rtc, 0,
                               CLOCKS_CLK_RTC_CTRL_AUXSRC_VALUE_XOSC_CLKSRC,
                               XOSC_HZ, XOSC_HZ / RTC_CLOCK_FREQ_HZ);
+#if !LIB_PICO_STDIO_USB
+  clock_stop(clk_usb);
   pll_deinit(pll_usb);
+#endif
 
   // Run at 12 MHz XOSC with PLL_SYS off by default
   power_set_clock_low();
 }
 
 void power_set_clock_low(void) {
+  flush_stdio_uart();
+
   // Switch clk_sys to clk_ref (12 MHz XOSC) via the glitchless mux
   clock_configure_undivided(clk_sys, CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLK_REF, 0,
                             XOSC_HZ);
@@ -61,9 +89,13 @@ void power_set_clock_low(void) {
 
   // Power down PLL_SYS
   pll_deinit(pll_sys);
+
+  reconfigure_stdio_uart();
 }
 
 void power_set_clock_normal(void) {
+  flush_stdio_uart();
+
   // Ensure clk_sys is on clk_ref before re-initializing PLL_SYS
   clock_configure_undivided(clk_sys, CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLK_REF, 0,
                             XOSC_HZ);
@@ -80,6 +112,8 @@ void power_set_clock_normal(void) {
   clock_configure_undivided(clk_peri, 0,
                             CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS,
                             SYS_CLK_HZ);
+
+  reconfigure_stdio_uart();
 }
 
 void power_sleep_until_flag(const volatile bool *flag) {
