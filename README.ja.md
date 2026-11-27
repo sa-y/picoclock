@@ -14,7 +14,7 @@ Raspberry Pi Pico W と Waveshare 2.13 インチ e-Paper ディスプレイを�
   - 時刻: 7セグ風フォントで時刻を表示(`HH:MM` 形式)
 - **低チラつき・焼き付き対策**:
   - 毎分の更新には e-Paper ディスプレイの **部分更新** を使用し、画面反転のチラつきを抑えます。
-  - 焼き付き防止のため、一定回数（デフォルト 60回 = 1時間ごと）に1回 **全画面更新** を行います。
+  - 焼き付き防止のため、毎時0分（デフォルト 60分間隔、30分に設定すると毎時0分・30分）に **全画面更新** を行います。
   - 更新後はディスプレイをディープスリープ状態にします。
 - **省電力動作**:
   - 未使用の USB / ADC クロックおよび `PLL_USB` を停止しています（USB / UART stdio 無効）。
@@ -86,7 +86,7 @@ cmake --build build
 | `TIMEZONE_OFFSET_S` | `9 * 3600` | タイムゾーンのオフセット（秒）。初期値は JST（UTC+9） |
 | `NTP_RESYNC_MINUTES` | `360` | NTP 再同期の間隔（分） |
 | `NTP_RESYNC_RETRY_MINUTES` | `15` | NTP 再同期失敗時のリトライ間隔（分） |
-| `FULL_REFRESH_INTERVAL_MINUTES` | `60` | 焼き付き防止用の全画面更新の間隔（分） |
+| `FULL_REFRESH_INTERVAL_MINUTES` | `60` | 毎時0分を基準とした全画面更新の間隔（分、60の約数を指定。例: `60`=毎時0分、`30`=毎時0分・30分） |
 | `EPD_ROTATE_180` | `0` | ディスプレイを上下逆向きに取り付ける場合は `1` に設定 |
 
 タイムアウトやリトライ設定（`WIFI_CONNECT_TIMEOUT_MS`、`NTP_TIMEOUT_MS`、`NTP_INITIAL_RETRY_DELAY_MS`、`EPD_BUSY_TIMEOUT_MS`、`EPD_SPI_BAUDRATE` 等）も `src/app_config.h` に集約されており、コンパイラの `-D` オプションで上書き可能です。

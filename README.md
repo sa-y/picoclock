@@ -14,7 +14,7 @@ On startup, it fetches the current time from an NTP server over Wi-Fi, then upda
   - Time: Displayed in a large 7-segment-style font (`HH:MM` format)
 - **Low-Flicker & Burn-In Prevention**:
   - Uses **partial refresh** for minute-by-minute updates to avoid full-screen flashing.
-  - Performs a **full refresh** periodically (every 60 partial updates = 1 hour by default) to clear ghosting and prevent burn-in.
+  - Performs a **full refresh** on fixed clock minutes aligned to the top of the hour (at `:00` every hour by default, or `:00`/`:30` when set to `30`) to clear ghosting and prevent burn-in.
   - Puts the e-Paper controller into deep sleep after every update.
 - **Power Management**:
   - Disables unused USB/ADC peripheral clocks and powers down `PLL_USB` permanently (USB/UART stdio disabled).
@@ -86,7 +86,7 @@ When the build succeeds, `build/picoclock.uf2` is generated.
 | `TIMEZONE_OFFSET_S` | `9 * 3600` | Timezone offset in seconds (default: JST, UTC+9) |
 | `NTP_RESYNC_MINUTES` | `360` | NTP resync interval in minutes |
 | `NTP_RESYNC_RETRY_MINUTES` | `15` | NTP retry interval in minutes after a resync failure |
-| `FULL_REFRESH_INTERVAL_MINUTES` | `60` | Full e-Paper refresh interval in minutes to prevent ghosting |
+| `FULL_REFRESH_INTERVAL_MINUTES` | `60` | Full e-Paper refresh interval in minutes aligned to `:00` (must be a divisor of 60, e.g. `60` = `:00`, `30` = `:00`/`:30`) |
 | `EPD_ROTATE_180` | `0` | Set to `1` if you mount the display upside-down |
 
 Timeouts and retry parameters (such as `WIFI_CONNECT_TIMEOUT_MS`, `NTP_TIMEOUT_MS`, `NTP_INITIAL_RETRY_DELAY_MS`, `EPD_BUSY_TIMEOUT_MS`, and `EPD_SPI_BAUDRATE`) are also configurable in `src/app_config.h` and can be overridden via compiler `-D` flags.

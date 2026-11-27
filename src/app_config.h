@@ -45,7 +45,8 @@
 #endif
 
 // Display & e-Paper settings
-// Perform a full e-Paper refresh every N partial updates to clear ghosting
+// Perform a full e-Paper refresh every N minutes aligned to the top of the
+// hour to clear ghosting (must be a divisor of 60, e.g. 60 = :00, 30 = :00/:30)
 #ifndef FULL_REFRESH_INTERVAL_MINUTES
 #define FULL_REFRESH_INTERVAL_MINUTES 60
 #endif

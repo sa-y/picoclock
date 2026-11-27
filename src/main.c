@@ -9,9 +9,14 @@
 #include "ntp_client.h"
 #include "power_mgmt.h"
 
+_Static_assert(
+    FULL_REFRESH_INTERVAL_MINUTES > 0 &&
+        (60 % FULL_REFRESH_INTERVAL_MINUTES) == 0,
+    "FULL_REFRESH_INTERVAL_MINUTES must be a positive divisor of 60");
+
 typedef struct {
   datetime_t last_displayed;
-  int partial_count;
+  bool needs_full_refresh;
   int minutes_until_resync;
 } clock_state_t;
 
@@ -80,20 +85,21 @@ static bool apply_rtc_datetime(datetime_t *dt) {
   return rtc_get_datetime(dt);
 }
 
+static bool should_full_refresh(const datetime_t *dt) {
+  return (dt->min % FULL_REFRESH_INTERVAL_MINUTES) == 0;
+}
+
 static void update_clock_display(clock_state_t *state, const datetime_t *dt,
                                  bool force_full) {
   const bool use_full =
-      force_full || (state->partial_count + 1 >= FULL_REFRESH_INTERVAL_MINUTES);
+      force_full || state->needs_full_refresh || should_full_refresh(dt);
 
   render_clock(dt);
   if (use_full) {
-    state->partial_count =
-        display_full_frame() ? 0 : FULL_REFRESH_INTERVAL_MINUTES;
-  } else if (display_partial_frame()) {
-    state->partial_count++;
-  } else {
+    state->needs_full_refresh = !display_full_frame();
+  } else if (!display_partial_frame()) {
     // Force a full refresh (with reset/re-init) on the next update
-    state->partial_count = FULL_REFRESH_INTERVAL_MINUTES;
+    state->needs_full_refresh = true;
   }
 
   state->last_displayed = *dt;
@@ -152,7 +158,7 @@ int main(void) {
 
   clock_state_t state = {
       .last_displayed = now,
-      .partial_count = 0,
+      .needs_full_refresh = false,
       .minutes_until_resync = NTP_RESYNC_MINUTES,
   };
   update_clock_display(&state, &now, true);
