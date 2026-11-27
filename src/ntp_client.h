@@ -5,7 +5,8 @@
 #include <stdbool.h>
 
 // Connect to Wi-Fi, query NTP server, and populate `out_dt` in local time.
-// Disconnects Wi-Fi before returning. Returns true on success.
+// Disconnects Wi-Fi before returning. Returns true on success (false if
+// `out_dt` is NULL or sync fails).
 bool ntp_sync_datetime(datetime_t *out_dt);
 
 #endif // NTP_CLIENT_H
