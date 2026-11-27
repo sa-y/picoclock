@@ -13,11 +13,7 @@
 
 #define NTP_MSG_LEN 48
 #define NTP_DELTA 2208988800UL
-#define NTP_TIMEOUT_MS 5000
 #define NTP_POLL_INTERVAL_MS 20
-#define NTP_MAX_ATTEMPTS 3
-#define NTP_WIFI_CONNECT_TIMEOUT_MS 20000
-#define NTP_RETRY_DELAY_MS 500
 #define NTP_TRANSMIT_TS_OFFSET 40
 #define NTP_MODE_SERVER 4
 
@@ -232,7 +228,7 @@ bool ntp_sync_datetime(datetime_t *out_dt) {
 
   int rc = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD,
                                               WIFI_AUTH,
-                                              NTP_WIFI_CONNECT_TIMEOUT_MS);
+                                              WIFI_CONNECT_TIMEOUT_MS);
   if (rc != 0) {
     cyw43_arch_deinit();
     power_set_clock_low();

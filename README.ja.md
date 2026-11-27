@@ -85,15 +85,11 @@ cmake --build build
 | `NTP_PORT` | `123` | NTP サーバーのポート番号 |
 | `TIMEZONE_OFFSET_S` | `9 * 3600` | タイムゾーンのオフセット（秒）。初期値は JST（UTC+9） |
 | `NTP_RESYNC_MINUTES` | `360` | NTP 再同期の間隔（分） |
+| `NTP_RESYNC_RETRY_MINUTES` | `15` | NTP 再同期失敗時のリトライ間隔（分） |
 | `FULL_REFRESH_INTERVAL_MINUTES` | `60` | 焼き付き防止用の全画面更新の間隔（分） |
+| `EPD_ROTATE_180` | `0` | ディスプレイを上下逆向きに取り付ける場合は `1` に設定 |
 
-### 画面の上下反転（`src/graphics.h`）
-
-ディスプレイを上下逆向きに取り付けた場合は、`src/graphics.h` の `EPD_ROTATE_180` を `1` に変更して再ビルドしてください。
-
-```c
-#define EPD_ROTATE_180 1
-```
+タイムアウトやリトライ設定（`WIFI_CONNECT_TIMEOUT_MS`、`NTP_TIMEOUT_MS`、`NTP_INITIAL_RETRY_DELAY_MS`、`EPD_BUSY_TIMEOUT_MS`、`EPD_SPI_BAUDRATE` 等）も `src/app_config.h` に集約されており、コンパイラの `-D` オプションで上書き可能です。
 
 ## ファイル構成
 

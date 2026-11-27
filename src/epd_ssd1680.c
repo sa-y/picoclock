@@ -1,4 +1,5 @@
 #include "epd_ssd1680.h"
+#include "app_config.h"
 #include "power_mgmt.h"
 
 #include "hardware/gpio.h"
@@ -26,8 +27,6 @@ enum {
   EPD_CMD_SET_RAM_X_ADDR = 0x4E,
   EPD_CMD_SET_RAM_Y_ADDR = 0x4F,
 };
-
-#define EPD_SPI_BAUDRATE (4 * 1000 * 1000)
 
 static volatile bool s_epd_wait_done = false;
 
@@ -93,7 +92,8 @@ static bool epd_wait_busy(void) {
   }
 
   s_epd_wait_done = false;
-  alarm_id_t alarm = add_alarm_in_ms(10000, epd_timeout_alarm_cb, NULL, true);
+  alarm_id_t alarm =
+      add_alarm_in_ms(EPD_BUSY_TIMEOUT_MS, epd_timeout_alarm_cb, NULL, true);
   gpio_set_irq_enabled(EPD_PIN_BUSY, GPIO_IRQ_LEVEL_LOW, true);
 
   power_sleep_until_io_or_timer(&s_epd_wait_done);

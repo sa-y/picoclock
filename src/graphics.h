@@ -5,9 +5,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Set to 1 if you mount the display upside-down
-#define EPD_ROTATE_180 0
-
 void gfx_clear(uint8_t *buf);
 void gfx_set_pixel(uint8_t *buf, int x, int y, bool black);
 void gfx_fill_rect(uint8_t *buf, int x, int y, int w, int h, bool black);

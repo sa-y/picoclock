@@ -85,15 +85,11 @@ When the build succeeds, `build/picoclock.uf2` is generated.
 | `NTP_PORT` | `123` | NTP server port |
 | `TIMEZONE_OFFSET_S` | `9 * 3600` | Timezone offset in seconds (default: JST, UTC+9) |
 | `NTP_RESYNC_MINUTES` | `360` | NTP resync interval in minutes |
+| `NTP_RESYNC_RETRY_MINUTES` | `15` | NTP retry interval in minutes after a resync failure |
 | `FULL_REFRESH_INTERVAL_MINUTES` | `60` | Full e-Paper refresh interval in minutes to prevent ghosting |
+| `EPD_ROTATE_180` | `0` | Set to `1` if you mount the display upside-down |
 
-### Rotate Display 180° (`src/graphics.h`)
-
-If you mount the display upside-down, change `EPD_ROTATE_180` in `src/graphics.h` to `1` and rebuild:
-
-```c
-#define EPD_ROTATE_180 1
-```
+Timeouts and retry parameters (such as `WIFI_CONNECT_TIMEOUT_MS`, `NTP_TIMEOUT_MS`, `NTP_INITIAL_RETRY_DELAY_MS`, `EPD_BUSY_TIMEOUT_MS`, and `EPD_SPI_BAUDRATE`) are also configurable in `src/app_config.h` and can be overridden via compiler `-D` flags.
 
 ## Project Structure
 

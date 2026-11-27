@@ -121,10 +121,13 @@ int main(void) {
   bool sync_err_shown = false;
   while (!ntp_sync_datetime(&now)) {
     if (!sync_err_shown) {
-      render_status("NTP Sync Failed", "Retrying in 30s");
+      char retry_msg[24];
+      snprintf(retry_msg, sizeof(retry_msg), "Retrying in %us",
+               (unsigned)(NTP_INITIAL_RETRY_DELAY_MS / 1000));
+      render_status("NTP Sync Failed", retry_msg);
       sync_err_shown = display_full_frame();
     }
-    power_sleep_ms(30000);
+    power_sleep_ms(NTP_INITIAL_RETRY_DELAY_MS);
   }
 
   apply_rtc_datetime(&now);
