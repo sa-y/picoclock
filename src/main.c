@@ -9,6 +9,12 @@
 #include "ntp_client.h"
 #include "power_mgmt.h"
 
+typedef struct {
+  datetime_t last_displayed;
+  int partial_count;
+  int minutes_until_resync;
+} clock_state_t;
+
 static uint8_t frame_buf[EPD_BUFFER_SIZE];
 static volatile bool s_minute_tick = false;
 
@@ -55,6 +61,54 @@ static bool display_partial_frame(void) {
   return ok;
 }
 
+static void apply_rtc_datetime(datetime_t *dt) {
+  rtc_set_datetime(dt);
+  // Wait briefly for RTC registers to latch
+  sleep_ms(100);
+  rtc_get_datetime(dt);
+}
+
+static void update_clock_display(clock_state_t *state, const datetime_t *dt,
+                                 bool force_full) {
+  const bool use_full =
+      force_full || (state->partial_count + 1 >= FULL_REFRESH_INTERVAL_MINUTES);
+
+  render_clock(dt);
+  if (use_full) {
+    state->partial_count =
+        display_full_frame() ? 0 : FULL_REFRESH_INTERVAL_MINUTES;
+  } else if (display_partial_frame()) {
+    state->partial_count++;
+  } else {
+    // Force a full refresh (with reset/re-init) on the next update
+    state->partial_count = FULL_REFRESH_INTERVAL_MINUTES;
+  }
+
+  state->last_displayed = *dt;
+}
+
+static void resync_ntp_if_due(clock_state_t *state) {
+  if (state->minutes_until_resync > 0) {
+    return;
+  }
+
+  datetime_t synced = {0};
+  if (!ntp_sync_datetime(&synced)) {
+    int retry = NTP_RESYNC_RETRY_MINUTES;
+    if (retry > NTP_RESYNC_MINUTES) {
+      retry = NTP_RESYNC_MINUTES;
+    }
+    state->minutes_until_resync = retry > 0 ? retry : 1;
+    return;
+  }
+
+  state->minutes_until_resync = NTP_RESYNC_MINUTES;
+  apply_rtc_datetime(&synced);
+  if (!is_same_minute(&synced, &state->last_displayed)) {
+    update_clock_display(state, &synced, false);
+  }
+}
+
 int main(void) {
   stdio_init_all();
   power_init();
@@ -73,16 +127,14 @@ int main(void) {
     power_sleep_ms(30000);
   }
 
-  rtc_set_datetime(&now);
-  // Wait briefly for RTC registers to latch
-  sleep_ms(100);
-  rtc_get_datetime(&now);
+  apply_rtc_datetime(&now);
 
-  render_clock(&now);
-  int partial_count = display_full_frame() ? 0 : FULL_REFRESH_INTERVAL_MINUTES;
-
-  datetime_t last_displayed = now;
-  int resync_minutes = 0;
+  clock_state_t state = {
+      .last_displayed = now,
+      .partial_count = 0,
+      .minutes_until_resync = NTP_RESYNC_MINUTES,
+  };
+  update_clock_display(&state, &now, true);
 
   // Trigger an RTC alarm at sec == 0 every minute
   const datetime_t alarm_dt = {
@@ -105,46 +157,18 @@ int main(void) {
       power_sleep_until_flag(&s_minute_tick);
       continue;
     }
-    if (is_same_minute(&now, &last_displayed)) {
+    if (is_same_minute(&now, &state.last_displayed)) {
       power_sleep_until_flag(&s_minute_tick);
       continue;
     }
 
-    last_displayed = now;
-    partial_count++;
-    resync_minutes++;
+    if (state.minutes_until_resync > 0) {
+      state.minutes_until_resync--;
+    }
 
     // Update the display for the new minute before any blocking NTP sync
-    render_clock(&now);
-    if (partial_count >= FULL_REFRESH_INTERVAL_MINUTES) {
-      if (display_full_frame()) {
-        partial_count = 0;
-      } else {
-        partial_count = FULL_REFRESH_INTERVAL_MINUTES;
-      }
-    } else {
-      if (!display_partial_frame()) {
-        // Force a full refresh (with reset/re-init) on the next update
-        partial_count = FULL_REFRESH_INTERVAL_MINUTES;
-      }
-    }
-
-    if (resync_minutes >= NTP_RESYNC_MINUTES) {
-      resync_minutes = 0;
-      datetime_t synced = {0};
-      if (ntp_sync_datetime(&synced)) {
-        rtc_set_datetime(&synced);
-        sleep_ms(100);
-        if (!is_same_minute(&synced, &now)) {
-          now = synced;
-          last_displayed = now;
-          render_clock(&now);
-          if (!display_partial_frame()) {
-            partial_count = FULL_REFRESH_INTERVAL_MINUTES;
-          }
-        }
-      }
-    }
+    update_clock_display(&state, &now, false);
+    resync_ntp_if_due(&state);
   }
 
   return 0;

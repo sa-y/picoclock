@@ -11,8 +11,9 @@
 #define NTP_PORT 123
 #define TIMEZONE_OFFSET_S (9 * 3600)
 
-// Resync interval in minutes (360 = 6 hours)
+// Resync interval in minutes (360 = 6 hours) and retry interval on failure
 #define NTP_RESYNC_MINUTES 360
+#define NTP_RESYNC_RETRY_MINUTES 15
 
 // Perform a full e-Paper refresh every N partial updates to clear ghosting
 #define FULL_REFRESH_INTERVAL_MINUTES 60
