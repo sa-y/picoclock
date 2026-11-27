@@ -16,6 +16,11 @@ static void rtc_alarm_callback(void) {
   s_minute_tick = true;
 }
 
+static bool is_same_minute(const datetime_t *a, const datetime_t *b) {
+  return a->year == b->year && a->month == b->month && a->day == b->day &&
+         a->hour == b->hour && a->min == b->min;
+}
+
 static void render_status(const char *line1, const char *line2) {
   gfx_clear(frame_buf);
   if (line1) {
@@ -60,7 +65,7 @@ int main(void) {
       epd_sleep();
       sync_err_shown = true;
     }
-    sleep_ms(30000);
+    power_sleep_ms(30000);
   }
 
   rtc_set_datetime(&now);
@@ -73,7 +78,7 @@ int main(void) {
   epd_display_full(frame_buf);
   epd_sleep();
 
-  int8_t last_min = now.min;
+  datetime_t last_displayed = now;
   int partial_count = 0;
   int resync_minutes = 0;
 
@@ -90,17 +95,20 @@ int main(void) {
   rtc_set_alarm(&alarm_dt, rtc_alarm_callback);
 
   while (true) {
+    // Clear the flag before reading the RTC so any minute-boundary alarm
+    // firing during or after rtc_get_datetime() is preserved.
     s_minute_tick = false;
-    power_sleep_until_flag(&s_minute_tick);
 
     if (!rtc_get_datetime(&now)) {
+      power_sleep_until_flag(&s_minute_tick);
       continue;
     }
-    if (now.min == last_min) {
+    if (is_same_minute(&now, &last_displayed)) {
+      power_sleep_until_flag(&s_minute_tick);
       continue;
     }
 
-    last_min = now.min;
+    last_displayed = now;
     partial_count++;
     resync_minutes++;
 
@@ -122,10 +130,9 @@ int main(void) {
       if (ntp_sync_datetime(&synced)) {
         rtc_set_datetime(&synced);
         sleep_ms(100);
-        if (synced.min != now.min || synced.hour != now.hour ||
-            synced.day != now.day) {
+        if (!is_same_minute(&synced, &now)) {
           now = synced;
-          last_min = now.min;
+          last_displayed = now;
           render_clock(&now);
           epd_display_partial(frame_buf);
           epd_sleep();

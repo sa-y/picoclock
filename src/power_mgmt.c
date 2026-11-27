@@ -9,6 +9,7 @@
 #include "hardware/structs/scb.h"
 #include "hardware/sync.h"
 #include "hardware/xosc.h"
+#include "pico/time.h"
 
 static void sleep_with_clock_mask(const volatile bool *flag, uint32_t en0_mask,
                                   uint32_t en1_mask) {
@@ -91,4 +92,29 @@ void power_sleep_until_io_or_timer(const volatile bool *flag) {
                        CLOCKS_SLEEP_EN0_CLK_SYS_PADS_BITS;
   const uint32_t en1 = CLOCKS_SLEEP_EN1_CLK_SYS_TIMER_BITS;
   sleep_with_clock_mask(flag, en0, en1);
+}
+
+static int64_t sleep_alarm_cb(alarm_id_t id, void *user_data) {
+  (void)id;
+  volatile bool *done = (volatile bool *)user_data;
+  *done = true;
+  return 0;
+}
+
+void power_sleep_ms(uint32_t ms) {
+  if (ms == 0) {
+    return;
+  }
+
+  volatile bool done = false;
+  alarm_id_t alarm = add_alarm_in_ms(ms, sleep_alarm_cb, (void *)&done, true);
+  if (alarm < 0) {
+    sleep_ms(ms);
+    return;
+  }
+  if (alarm > 0) {
+    sleep_with_clock_mask(&done, CLOCKS_SLEEP_EN0_CLK_RTC_RTC_BITS,
+                          CLOCKS_SLEEP_EN1_CLK_SYS_TIMER_BITS);
+    cancel_alarm(alarm);
+  }
 }

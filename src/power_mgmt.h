@@ -2,6 +2,7 @@
 #define POWER_MGMT_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 // Stop unused peripheral clocks (USB, ADC), switch RTC clock source to XOSC,
 // power down PLL_USB permanently, and switch to low-power 12 MHz XOSC clock.
@@ -19,5 +20,9 @@ void power_sleep_until_flag(const volatile bool *flag);
 // Enter RP2040 deep sleep (keeping RTC, IO/PADS, and system timer clocks
 // active) until *flag is true.
 void power_sleep_until_io_or_timer(const volatile bool *flag);
+
+// Enter RP2040 deep sleep (keeping only RTC and system timer clocks active)
+// for the specified duration in milliseconds.
+void power_sleep_ms(uint32_t ms);
 
 #endif // POWER_MGMT_H
