@@ -15,14 +15,28 @@
 #define EPD_LANDSCAPE_WIDTH EPD_NATIVE_HEIGHT // 250
 #define EPD_LANDSCAPE_HEIGHT EPD_NATIVE_WIDTH // 122
 
-// Waveshare Pico-ePaper-2.13 HAT pinout (SPI1)
+// Waveshare Pico-ePaper-2.13 HAT pinout (SPI1), overridable via -D flags
+#ifndef EPD_SPI_PORT
 #define EPD_SPI_PORT spi1
+#endif
+#ifndef EPD_PIN_DC
 #define EPD_PIN_DC 8
+#endif
+#ifndef EPD_PIN_CS
 #define EPD_PIN_CS 9
+#endif
+#ifndef EPD_PIN_SCK
 #define EPD_PIN_SCK 10
+#endif
+#ifndef EPD_PIN_MOSI
 #define EPD_PIN_MOSI 11
+#endif
+#ifndef EPD_PIN_RST
 #define EPD_PIN_RST 12
+#endif
+#ifndef EPD_PIN_BUSY
 #define EPD_PIN_BUSY 13
+#endif
 
 // Initialize GPIO/SPI and configure the e-Paper controller for full refresh.
 // Returns true on success, or false if the controller timed out.

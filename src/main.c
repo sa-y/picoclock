@@ -37,13 +37,30 @@ static bool is_same_minute(const datetime_t *a, const datetime_t *b) {
          a->hour == b->hour && a->min == b->min;
 }
 
+// Display layout constants (250x122 landscape)
+enum {
+  UI_STATUS_X = 10,
+  UI_STATUS_LINE1_Y = 34,
+  UI_STATUS_LINE2_Y = 62,
+  UI_STATUS_FONT_SCALE = 2,
+
+  UI_CLOCK_MARGIN_X = 8,
+  UI_CLOCK_DATE_Y = 6,
+  UI_CLOCK_DATE_FONT_SCALE = 2,
+  UI_CLOCK_DIVIDER_Y = 26,
+  UI_CLOCK_TIME_X = 14,
+  UI_CLOCK_TIME_Y = 36,
+};
+
 static void render_status(const char *line1, const char *line2) {
   gfx_clear(&s_canvas);
   if (line1) {
-    gfx_draw_text(&s_canvas, 10, 34, line1, 2, true);
+    gfx_draw_text(&s_canvas, UI_STATUS_X, UI_STATUS_LINE1_Y, line1,
+                  UI_STATUS_FONT_SCALE, true);
   }
   if (line2) {
-    gfx_draw_text(&s_canvas, 10, 62, line2, 2, true);
+    gfx_draw_text(&s_canvas, UI_STATUS_X, UI_STATUS_LINE2_Y, line2,
+                  UI_STATUS_FONT_SCALE, true);
   }
 }
 
@@ -54,11 +71,14 @@ static void render_clock(const datetime_t *dt) {
 
   gfx_clear(&s_canvas);
   // Date in top-left corner, smaller than time
-  gfx_draw_text(&s_canvas, 8, 6, date_str, 2, true);
+  gfx_draw_text(&s_canvas, UI_CLOCK_MARGIN_X, UI_CLOCK_DATE_Y, date_str,
+                UI_CLOCK_DATE_FONT_SCALE, true);
   // Subtle divider line
-  gfx_draw_hline(&s_canvas, 8, 26, EPD_LANDSCAPE_WIDTH - 16, true);
+  gfx_draw_hline(&s_canvas, UI_CLOCK_MARGIN_X, UI_CLOCK_DIVIDER_Y,
+                 EPD_LANDSCAPE_WIDTH - 2 * UI_CLOCK_MARGIN_X, true);
   // Large HH:MM centered in the main area
-  gfx_draw_large_time(&s_canvas, 14, 36, dt->hour, dt->min);
+  gfx_draw_large_time(&s_canvas, UI_CLOCK_TIME_X, UI_CLOCK_TIME_Y, dt->hour,
+                      dt->min);
 }
 
 static bool display_full_frame(void) {

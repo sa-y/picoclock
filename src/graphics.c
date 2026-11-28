@@ -161,16 +161,36 @@ void gfx_draw_hline(gfx_canvas_t *canvas, int x, int y, int w, bool black) {
   gfx_fill_rect(canvas, x, y, w, 1, black);
 }
 
+enum {
+  FONT_5X7_FIRST_CHAR = 0x20,
+  FONT_5X7_LAST_CHAR = 0x7E,
+  FONT_5X7_WIDTH = 5,
+  FONT_5X7_HEIGHT = 7,
+  FONT_5X7_ADVANCE = 6,
+
+  SEG7_DIGIT_WIDTH = 44,
+  SEG7_DIGIT_HEIGHT = 76,
+  SEG7_THICKNESS = 8,
+  SEG7_INSET = 2,
+  SEG7_HALF_GAP = 1,
+  SEG7_COLON_WIDTH = 14,
+  SEG7_COLON_DOT_SIZE = 8,
+  SEG7_COLON_X_OFFSET = 3,
+  SEG7_COLON_TOP_Y = 20,
+  SEG7_COLON_BOT_Y = 48,
+  SEG7_DIGIT_GAP = 8,
+};
+
 static void gfx_draw_char(gfx_canvas_t *canvas, int x, int y, char c, int scale,
                           bool black) {
   unsigned char uc = (unsigned char)c;
-  if (uc < 0x20 || uc > 0x7E) {
+  if (uc < FONT_5X7_FIRST_CHAR || uc > FONT_5X7_LAST_CHAR) {
     uc = '?';
   }
-  const uint8_t *glyph = FONT_5X7[uc - 0x20];
-  for (int col = 0; col < 5; col++) {
+  const uint8_t *glyph = FONT_5X7[uc - FONT_5X7_FIRST_CHAR];
+  for (int col = 0; col < FONT_5X7_WIDTH; col++) {
     uint8_t bits = glyph[col];
-    for (int row = 0; row < 7; row++) {
+    for (int row = 0; row < FONT_5X7_HEIGHT; row++) {
       if (bits & (1u << row)) {
         gfx_fill_rect(canvas, x + col * scale, y + row * scale, scale, scale,
                       black);
@@ -185,7 +205,7 @@ void gfx_draw_text(gfx_canvas_t *canvas, int x, int y, const char *str,
     return;
   }
   int cx = x;
-  int step = 6 * scale;
+  int step = FONT_5X7_ADVANCE * scale;
   while (*str) {
     gfx_draw_char(canvas, cx, y, *str, scale, black);
     cx += step;
@@ -212,38 +232,42 @@ static void draw_large_digit(gfx_canvas_t *canvas, int x, int y, int digit) {
   if (digit < 0 || digit > 9) {
     return;
   }
-  const int w = 44;
-  const int h = 76;
-  const int t = 8;
+  const int w = SEG7_DIGIT_WIDTH;
+  const int h = SEG7_DIGIT_HEIGHT;
+  const int t = SEG7_THICKNESS;
+  const int v_len = h / 2 - SEG7_INSET - SEG7_HALF_GAP;
   uint8_t seg = SEG7_DIGITS[digit];
 
   if (seg & 0x01) { // a: top
-    gfx_fill_rect(canvas, x + 2, y, w - 4, t, true);
+    gfx_fill_rect(canvas, x + SEG7_INSET, y, w - 2 * SEG7_INSET, t, true);
   }
   if (seg & 0x02) { // b: top-right
-    gfx_fill_rect(canvas, x + w - t, y + 2, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x + w - t, y + SEG7_INSET, t, v_len, true);
   }
   if (seg & 0x04) { // c: bottom-right
-    gfx_fill_rect(canvas, x + w - t, y + h / 2 + 1, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x + w - t, y + h / 2 + SEG7_HALF_GAP, t, v_len, true);
   }
   if (seg & 0x08) { // d: bottom
-    gfx_fill_rect(canvas, x + 2, y + h - t, w - 4, t, true);
+    gfx_fill_rect(canvas, x + SEG7_INSET, y + h - t, w - 2 * SEG7_INSET, t,
+                  true);
   }
   if (seg & 0x10) { // e: bottom-left
-    gfx_fill_rect(canvas, x, y + h / 2 + 1, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x, y + h / 2 + SEG7_HALF_GAP, t, v_len, true);
   }
   if (seg & 0x20) { // f: top-left
-    gfx_fill_rect(canvas, x, y + 2, t, h / 2 - 3, true);
+    gfx_fill_rect(canvas, x, y + SEG7_INSET, t, v_len, true);
   }
   if (seg & 0x40) { // g: middle
-    gfx_fill_rect(canvas, x + 2, y + (h - t) / 2, w - 4, t, true);
+    gfx_fill_rect(canvas, x + SEG7_INSET, y + (h - t) / 2, w - 2 * SEG7_INSET,
+                  t, true);
   }
 }
 
 static void draw_large_colon(gfx_canvas_t *canvas, int x, int y) {
-  const int dot = 8;
-  gfx_fill_rect(canvas, x + 3, y + 20, dot, dot, true);
-  gfx_fill_rect(canvas, x + 3, y + 48, dot, dot, true);
+  gfx_fill_rect(canvas, x + SEG7_COLON_X_OFFSET, y + SEG7_COLON_TOP_Y,
+                SEG7_COLON_DOT_SIZE, SEG7_COLON_DOT_SIZE, true);
+  gfx_fill_rect(canvas, x + SEG7_COLON_X_OFFSET, y + SEG7_COLON_BOT_Y,
+                SEG7_COLON_DOT_SIZE, SEG7_COLON_DOT_SIZE, true);
 }
 
 void gfx_draw_large_time(gfx_canvas_t *canvas, int x, int y, int hour,
@@ -251,9 +275,6 @@ void gfx_draw_large_time(gfx_canvas_t *canvas, int x, int y, int hour,
   if (!canvas_is_valid(canvas)) {
     return;
   }
-  const int digit_w = 44;
-  const int colon_w = 14;
-  const int gap = 8;
 
   int h1 = (hour / 10) % 10;
   int h2 = hour % 10;
@@ -262,12 +283,12 @@ void gfx_draw_large_time(gfx_canvas_t *canvas, int x, int y, int hour,
 
   int cx = x;
   draw_large_digit(canvas, cx, y, h1);
-  cx += digit_w + gap;
+  cx += SEG7_DIGIT_WIDTH + SEG7_DIGIT_GAP;
   draw_large_digit(canvas, cx, y, h2);
-  cx += digit_w + gap;
+  cx += SEG7_DIGIT_WIDTH + SEG7_DIGIT_GAP;
   draw_large_colon(canvas, cx, y);
-  cx += colon_w + gap;
+  cx += SEG7_COLON_WIDTH + SEG7_DIGIT_GAP;
   draw_large_digit(canvas, cx, y, m1);
-  cx += digit_w + gap;
+  cx += SEG7_DIGIT_WIDTH + SEG7_DIGIT_GAP;
   draw_large_digit(canvas, cx, y, m2);
 }

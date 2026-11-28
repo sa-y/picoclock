@@ -27,6 +27,27 @@ enum {
   EPD_CMD_SET_RAM_Y_ADDR = 0x4F,
 };
 
+// SSD1680 command parameter values and timing constants
+enum {
+  EPD_DRIVER_SCAN_NORMAL = 0x00,
+  EPD_DATA_ENTRY_X_INC_Y_INC = 0x03,
+  EPD_BORDER_FULL_REFRESH = 0x05,
+  EPD_BORDER_PARTIAL_REFRESH = 0x80,
+  EPD_DISP_UPDATE_CTRL1_NORMAL = 0x00,
+  EPD_DISP_UPDATE_CTRL1_SOURCE_MODE = 0x80,
+  EPD_TEMP_SENSOR_INTERNAL = 0x80,
+  EPD_DISP_UPDATE_FULL = 0xF7,
+  EPD_DISP_UPDATE_PARTIAL = 0xFF,
+  EPD_DEEP_SLEEP_MODE_1 = 0x01,
+
+  EPD_RESET_PRE_HIGH_MS = 20,
+  EPD_RESET_LOW_MS = 2,
+  EPD_RESET_POST_HIGH_MS = 20,
+  EPD_PARTIAL_WAKE_LOW_MS = 2,
+  EPD_PARTIAL_WAKE_HIGH_MS = 2,
+  EPD_DEEP_SLEEP_SETTLE_MS = 100,
+};
+
 static volatile bool s_epd_wait_done = false;
 static bool s_hw_initialized = false;
 
@@ -77,11 +98,11 @@ static void epd_hw_init(void) {
 
 static void epd_reset(void) {
   gpio_put(EPD_PIN_RST, 1);
-  sleep_ms(20);
+  sleep_ms(EPD_RESET_PRE_HIGH_MS);
   gpio_put(EPD_PIN_RST, 0);
-  sleep_ms(2);
+  sleep_ms(EPD_RESET_LOW_MS);
   gpio_put(EPD_PIN_RST, 1);
-  sleep_ms(20);
+  sleep_ms(EPD_RESET_POST_HIGH_MS);
 }
 
 static bool epd_wait_busy(void) {
@@ -159,24 +180,24 @@ static void epd_configure_scan_and_window(void) {
   epd_send_cmd(EPD_CMD_DRIVER_OUTPUT_CTRL);
   epd_send_data((uint8_t)(max_gate & 0xFF));
   epd_send_data((uint8_t)((max_gate >> 8) & 0xFF));
-  epd_send_data(0x00);
+  epd_send_data(EPD_DRIVER_SCAN_NORMAL);
 
-  epd_send_cmd(EPD_CMD_DATA_ENTRY_MODE); // X inc, Y inc
-  epd_send_data(0x03);
+  epd_send_cmd(EPD_CMD_DATA_ENTRY_MODE);
+  epd_send_data(EPD_DATA_ENTRY_X_INC_Y_INC);
 
   epd_set_window(0, 0, EPD_STRIDE_BYTES - 1, max_gate);
 }
 
 static bool epd_turn_on_full(void) {
   epd_send_cmd(EPD_CMD_DISP_UPDATE_CTRL2);
-  epd_send_data(0xF7);
+  epd_send_data(EPD_DISP_UPDATE_FULL);
   epd_send_cmd(EPD_CMD_MASTER_ACTIVATION);
   return epd_wait_busy();
 }
 
 static bool epd_turn_on_partial(void) {
   epd_send_cmd(EPD_CMD_DISP_UPDATE_CTRL2);
-  epd_send_data(0xFF);
+  epd_send_data(EPD_DISP_UPDATE_PARTIAL);
   epd_send_cmd(EPD_CMD_MASTER_ACTIVATION);
   return epd_wait_busy();
 }
@@ -196,14 +217,14 @@ bool epd_init_full(void) {
   epd_configure_scan_and_window();
 
   epd_send_cmd(EPD_CMD_BORDER_WAVEFORM);
-  epd_send_data(0x05);
+  epd_send_data(EPD_BORDER_FULL_REFRESH);
 
   epd_send_cmd(EPD_CMD_DISP_UPDATE_CTRL1);
-  epd_send_data(0x00);
-  epd_send_data(0x80);
+  epd_send_data(EPD_DISP_UPDATE_CTRL1_NORMAL);
+  epd_send_data(EPD_DISP_UPDATE_CTRL1_SOURCE_MODE);
 
-  epd_send_cmd(EPD_CMD_TEMP_SENSOR_CTRL); // Read built-in temperature sensor
-  epd_send_data(0x80);
+  epd_send_cmd(EPD_CMD_TEMP_SENSOR_CTRL);
+  epd_send_data(EPD_TEMP_SENSOR_INTERNAL);
 
   epd_set_cursor(0, 0);
   return epd_wait_busy();
@@ -237,15 +258,15 @@ bool epd_display_partial(const uint8_t *image) {
 
   // Brief hardware reset wakes from sleep and prepares partial update
   gpio_put(EPD_PIN_RST, 0);
-  sleep_ms(2);
+  sleep_ms(EPD_PARTIAL_WAKE_LOW_MS);
   gpio_put(EPD_PIN_RST, 1);
-  sleep_ms(2);
+  sleep_ms(EPD_PARTIAL_WAKE_HIGH_MS);
   if (!epd_wait_busy()) {
     return false;
   }
 
-  epd_send_cmd(EPD_CMD_BORDER_WAVEFORM); // BorderWaveform for partial update
-  epd_send_data(0x80);
+  epd_send_cmd(EPD_CMD_BORDER_WAVEFORM);
+  epd_send_data(EPD_BORDER_PARTIAL_REFRESH);
 
   epd_configure_scan_and_window();
   epd_set_cursor(0, 0);
@@ -261,7 +282,7 @@ void epd_sleep(void) {
     return;
   }
   epd_hw_init();
-  epd_send_cmd(EPD_CMD_DEEP_SLEEP); // Deep sleep mode 1
-  epd_send_data(0x01);
-  power_sleep_ms(100);
+  epd_send_cmd(EPD_CMD_DEEP_SLEEP);
+  epd_send_data(EPD_DEEP_SLEEP_MODE_1);
+  power_sleep_ms(EPD_DEEP_SLEEP_SETTLE_MS);
 }
